@@ -1,0 +1,67 @@
+{
+  "name": "@veloze/jwt",
+  "version": "0.0.0",
+  "description": "todo",
+  "keywords": [
+    "veloze",
+    "web-framework",
+    "router",
+    "connect",
+    "middlewares",
+    "web",
+    "express-like",
+    "http",
+    "htt2"
+  ],
+  "homepage": "https://github.com/commenthol/veloze-jwt",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/commenthol/veloze-jwt.git"
+  },
+  "license": "MIT",
+  "author": "commenthol <commenthol@gmail.com>",
+  "type": "module",
+  "main": "src/index.js",
+  "types": "types",
+  "files": [
+    "src",
+    "types"
+  ],
+  "scripts": {
+    "all": "npm-run-all lint coverage types",
+    "ci": "CI=true npm-run-all lint coverage types",
+    "changelog": "conv-changelog -t groups -o",
+    "coverage": "c8 -r html -r text npm t",
+    "lint": "eslint --ext js .",
+    "test": "mocha",
+    "test:certs": "sh ./scripts/test-certs.sh",
+    "types": "rm -rf types; tsc",
+    "dc": "docker compose -f scripts/docker-compose.yaml"
+  },
+  "mocha": {
+    "recursive": true
+  },
+  "dependencies": {
+    "jose": "^4.14.4",
+    "veloze": "^0.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18.16.16",
+    "c8": "^7.13.0",
+    "debug-level": "^3.0.0",
+    "eslint": "^8.41.0",
+    "eslint-config-standard": "^17.0.0",
+    "eslint-plugin-import": "^2.27.5",
+    "eslint-plugin-n": "^15.7.0",
+    "eslint-plugin-promise": "^6.1.1",
+    "jsonwebtoken": "^9.0.0",
+    "mocha": "^10.2.0",
+    "npm-run-all": "^4.1.5",
+    "shelljs": "^0.8.5",
+    "supertest": "^6.3.3",
+    "typescript": "^5.0.4"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
