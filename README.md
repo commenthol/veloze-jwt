@@ -6,8 +6,8 @@
 
 Middleware to verify JSON-Web-Tokens (JWT) sent in Bearer Authorization Header.
 
-If public-keys are required to verify JTWs the JWKS URI can be detected by issuer using
-`.well-known/openid-configuration` URLs.
+If public-keys are required to verify JWTs the JWKS URI can be detected by
+issuer using `.well-known/openid-configuration` URLs.
 
 Supports multiple issuers with the `jwks()` method.
 
@@ -37,7 +37,7 @@ server.listen(443)
 // ----
 await fetch('https://server', { 
   headers: {
-    authorization: 'Bearers <TOKEN>' // H256 Token with issuer https://my.oau.th
+    authorization: 'Bearer <TOKEN>' // H256 Token with issuer https://my.oau.th
   }
 })
 ```
