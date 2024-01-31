@@ -1,6 +1,6 @@
 {
   "name": "@veloze/jwt",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "todo",
   "keywords": [
     "veloze",
@@ -35,31 +35,30 @@
     "lint": "eslint --ext js .",
     "test": "mocha",
     "test:certs": "sh ./scripts/test-certs.sh",
-    "types": "rm -rf types; tsc",
-    "dc": "docker compose -f scripts/docker-compose.yaml"
+    "types": "rm -rf types; tsc"
   },
   "mocha": {
     "recursive": true
   },
   "dependencies": {
-    "jose": "^4.14.4",
-    "veloze": "^0.5.2"
+    "jose": "^5.2.0",
+    "veloze": "^0.7.1"
   },
   "devDependencies": {
-    "@types/node": "^18.16.16",
-    "c8": "^7.14.0",
-    "debug-level": "^3.0.0",
-    "eslint": "^8.41.0",
+    "@types/node": "^20.11.13",
+    "c8": "^9.1.0",
+    "debug-level": "^3.1.2",
+    "eslint": "^8.56.0",
     "eslint-config-standard": "^17.1.0",
-    "eslint-plugin-import": "^2.27.5",
-    "eslint-plugin-n": "^15.7.0",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-n": "^16.6.2",
     "eslint-plugin-promise": "^6.1.1",
-    "jsonwebtoken": "^9.0.0",
+    "jsonwebtoken": "^9.0.2",
     "mocha": "^10.2.0",
     "npm-run-all": "^4.1.5",
     "shelljs": "^0.8.5",
-    "supertest": "^6.3.3",
-    "typescript": "^5.0.4"
+    "supertest": "^6.3.4",
+    "typescript": "^5.3.3"
   },
   "engines": {
     "node": ">=18"
