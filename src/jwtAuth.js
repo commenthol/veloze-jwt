@@ -1,11 +1,11 @@
 import * as jose from 'jose'
-import { HttpError } from 'veloze'
+import { HttpError } from 'veloze/src/HttpError.js'
 import { decodeJwt } from './decodeJwt.js'
 
 /**
- * @typedef {import('veloze/types').Request} Request
- * @typedef {import('veloze/types').Response} Response
- * @typedef {import('veloze/types').Handler} Handler
+ * @typedef {import('veloze').Request} Request
+ * @typedef {import('veloze').Response} Response
+ * @typedef {import('veloze').Handler} Handler
  * @typedef {import('jose').JWTVerifyOptions} JWTVerifyOptions
  * @typedef {import('jose').KeyLike} KeyLike
  * @typedef {import('./decodeJwt.js').DecodedJWT} DecodedJWT
@@ -21,24 +21,17 @@ import { decodeJwt } from './decodeJwt.js'
  * @param {JwtOptions} options
  * @returns {Handler}
  */
-export function jwtAuth (options) {
-  const {
-    secret,
-    requestProperty = 'auth',
-    ...verifyOptions
-  } = options || {}
+export function jwtAuth(options) {
+  const { secret, requestProperty = 'auth', ...verifyOptions } = options || {}
 
   if (!secret) throw new TypeError('need secret')
 
-  const _secret = typeof secret === 'string'
-    ? new TextEncoder().encode(secret)
-    : secret
+  const _secret =
+    typeof secret === 'string' ? new TextEncoder().encode(secret) : secret
 
-  const getKey = typeof secret === 'function'
-    ? secret
-    : async () => _secret
+  const getKey = typeof secret === 'function' ? secret : async () => _secret
 
-  return async function _jwtAuth (req, _res) {
+  return async function _jwtAuth(req, _res) {
     const { authorization } = req.headers
     if (!authorization) {
       throw new HttpError(401)
@@ -57,7 +50,7 @@ export function jwtAuth (options) {
     try {
       decodedToken = decodeJwt(token)
       key = await getKey(decodedToken, req)
-    } catch (/** @type {Error|any} */err) {
+    } catch (/** @type {Error|any} */ err) {
       throw new HttpError(401, 'Invalid Token', err)
     }
 
@@ -67,7 +60,7 @@ export function jwtAuth (options) {
 
     try {
       await jose.jwtVerify(token, key, verifyOptions)
-    } catch (/** @type {Error|any} */err) {
+    } catch (/** @type {Error|any} */ err) {
       throw new HttpError(401, 'Invalid Token', err)
     }
 
@@ -77,4 +70,4 @@ export function jwtAuth (options) {
   }
 }
 
-const immediate = () => new Promise(resolve => setImmediate(() => resolve(0)))
+const immediate = () => new Promise((resolve) => setImmediate(() => resolve(0)))

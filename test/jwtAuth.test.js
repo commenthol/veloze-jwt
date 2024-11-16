@@ -4,22 +4,24 @@ import * as jose from 'jose'
 import { jwtAuth } from '../src/index.js'
 import { connect, json as sendJson } from 'veloze'
 
-export const sign = (payload, { secret, expiresIn = 5e3, header = { alg: 'HS256' } }) =>
+export const sign = (
+  payload,
+  { secret, expiresIn = 5e3, header = { alg: 'HS256' } }
+) =>
   new jose.SignJWT({ ...payload, exp: secs(Date.now() + expiresIn) })
     .setProtectedHeader(header)
     .sign(new TextEncoder().encode(secret))
 
 const createApp = (options) => {
   const { requestProperty = 'auth' } = options || {}
-  return (req, res) => connect(
-    sendJson,
-    jwtAuth(options),
-    (req, res) => res.json(req[requestProperty])
-  )(req, res, (err) => {
-    // console.error(err)
-    const { status = 500, message } = err
-    res.json({ message }, status)
-  })
+  return (req, res) =>
+    connect(sendJson, jwtAuth(options), (req, res) =>
+      res.json(req[requestProperty])
+    )(req, res, (err) => {
+      // console.error(err)
+      const { status = 500, message } = err
+      res.json({ message }, status)
+    })
 }
 
 describe('jwtAuth', function () {
@@ -36,9 +38,7 @@ describe('jwtAuth', function () {
   })
 
   it('shall fail with missing authorization header', async function () {
-    await supertest(app)
-      .get('/')
-      .expect(401, { message: 'Unauthorized' })
+    await supertest(app).get('/').expect(401, { message: 'Unauthorized' })
   })
 
   it('shall fail with missing JWT', async function () {
@@ -65,7 +65,7 @@ describe('jwtAuth', function () {
   it('shall fail with empty secret', async function () {
     const app = createApp({
       secret: () => null,
-      algorithms: ['HS512']// ['HS256']
+      algorithms: ['HS512'] // ['HS256']
     })
 
     const token = await sign({ azp: 'test' }, { secret })

@@ -1,19 +1,26 @@
 {
   "compilerOptions": {
     "allowJs": true,
+    "allowSyntheticDefaultImports": true,
     "checkJs": true,
     "declaration": true,
     "declarationDir": "types",
-    "moduleResolution": "node",
-    "noImplicitAny": false,
-    "strict": true,
-    "module": "es2022",
-    "target": "es2022",
     "emitDeclarationOnly": true,
-    "noEmitOnError": true
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "noEmitOnError": false,
+    "noImplicitAny": false,
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "esnext",
+    "paths": {
+      "#*": [
+        "./src/*"
+      ]
+    },
   },
   "include": [
-    "src/*.js"
+    "src",
   ],
   "exclude": [
     "node_modules",

@@ -5,7 +5,12 @@ import assert from 'node:assert'
 import { Server, json as sendJson } from 'veloze'
 import supertest from 'supertest'
 import { jwtAuth, jwks } from '../src/index.js'
-import { getAccessToken, encodeJwtBadHeader, encodeJwtBadPayload, encodeJwtBadSig } from './support/auth.js'
+import {
+  getAccessToken,
+  encodeJwtBadHeader,
+  encodeJwtBadPayload,
+  encodeJwtBadSig
+} from './support/auth.js'
 import { createServer } from './support/server.js'
 import { Log } from 'debug-level'
 
@@ -45,7 +50,9 @@ describe('jwks', function () {
     const issuer = `http://localhost:${port}/fake`
     let server
     before(async function () {
-      server = (await createServer({ issuer, port, pathname: '/fake' })).listen(port)
+      server = (await createServer({ issuer, port, pathname: '/fake' })).listen(
+        port
+      )
     })
     after(function () {
       server.close()
@@ -136,9 +143,7 @@ describe('jwks', function () {
         const secretsByIssuer = { [issuer]: 'secret' }
         const app = createApp([issuer], { secretsByIssuer })
 
-        const { body } = await supertest(app)
-          .get('/')
-          .set({ authorization })
+        const { body } = await supertest(app).get('/').set({ authorization })
         log.debug(body)
         const { iss, username } = body
         assert.deepEqual({ iss, username }, { iss: issuer, username: 'HS256' })
@@ -146,7 +151,10 @@ describe('jwks', function () {
     })
 
     describe('failing', function () {
-      const header = { alg: 'HS256', kid: '00000000-0000-0000-0000-000000000000' }
+      const header = {
+        alg: 'HS256',
+        kid: '00000000-0000-0000-0000-000000000000'
+      }
 
       let app
       before(function () {
@@ -165,7 +173,10 @@ describe('jwks', function () {
       })
 
       it('shall fail with bad header token', async function () {
-        const header = { alg: 'HS256', kid: '00000000-0000-0000-0000-000000000000' }
+        const header = {
+          alg: 'HS256',
+          kid: '00000000-0000-0000-0000-000000000000'
+        }
         const payload = { iss: issuer, username: 'H256' }
         const authorization = `Bearer ${encodeJwtBadHeader({ header, payload })}`
         const { body } = await supertest(app)

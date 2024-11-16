@@ -1,5 +1,5 @@
 /**
- * @typedef {import('./jwtAuth').GetKeyLikeFn} GetKeyLikeFn
+ * @typedef {import('./jwtAuth.js').GetKeyLikeFn} GetKeyLikeFn
  */
 /**
  * @typedef {object} JwksOptions
@@ -14,7 +14,7 @@
  * @returns {GetKeyLikeFn}
  */
 export function jwks(issuers: string[], options: JwksOptions): GetKeyLikeFn;
-export type GetKeyLikeFn = import('./jwtAuth').GetKeyLikeFn;
+export type GetKeyLikeFn = import("./jwtAuth.js").GetKeyLikeFn;
 export type JwksOptions = {
     fetcher?: typeof fetch | undefined;
     /**

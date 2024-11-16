@@ -6,9 +6,9 @@ export type DecodedJWT = {
         alg: string;
     };
     payload: {
-        [prop: string]: any;
         iat: number;
         exp: number;
+        [prop: string]: any;
     };
     signature: string;
 };

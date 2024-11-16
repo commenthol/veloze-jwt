@@ -1,7 +1,7 @@
 import * as jose from 'jose'
 
 /**
- * @typedef {import('./jwtAuth').GetKeyLikeFn} GetKeyLikeFn
+ * @typedef {import('./jwtAuth.js').GetKeyLikeFn} GetKeyLikeFn
  */
 /**
  * @typedef {object} JwksOptions
@@ -16,7 +16,7 @@ import * as jose from 'jose'
  * @param {JwksOptions} options
  * @returns {GetKeyLikeFn}
  */
-export function jwks (issuers, options) {
+export function jwks(issuers, options) {
   const {
     expiresIn = 3e5, // default is 5 min
     fetcher = fetchIt(options),
@@ -40,13 +40,12 @@ export function jwks (issuers, options) {
     jwksCache.set(iss, jwskUri)
   }
   for (const [iss, secret] of Object.entries(secretsByIssuer)) {
-    const _secret = typeof secret === 'string'
-      ? new TextEncoder().encode(secret)
-      : secret
+    const _secret =
+      typeof secret === 'string' ? new TextEncoder().encode(secret) : secret
     secretsCache.set(iss, _secret)
   }
 
-  return async function getKey ({ header, payload }) {
+  return async function getKey({ header, payload }) {
     const { kid, alg } = header
     const { iss } = payload || {}
 
@@ -106,9 +105,7 @@ export function jwks (issuers, options) {
 }
 
 const fetchIt = (options) => {
-  const {
-    timeout = 15e3
-  } = options || {}
+  const { timeout = 15e3 } = options || {}
 
   return async (jwskUri) => {
     const controller = new AbortController()
@@ -117,7 +114,10 @@ const fetchIt = (options) => {
     const res = await fetch(jwskUri, { signal: controller.signal })
     clearTimeout(timer)
 
-    if (res.ok && String(res.headers.get('content-type')).startsWith('application/json')) {
+    if (
+      res.ok &&
+      String(res.headers.get('content-type')).startsWith('application/json')
+    ) {
       return await res.json()
     }
   }

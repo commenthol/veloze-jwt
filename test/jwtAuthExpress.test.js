@@ -6,14 +6,13 @@ import { connect, json as sendJson } from 'veloze'
 
 const createApp = (options) => {
   const { requestProperty = 'auth' } = options || {}
-  return (req, res) => connect(
-    sendJson,
-    jwtAuthExpress(options),
-    (req, res) => res.json(req[requestProperty])
-  )(req, res, (err) => {
-    const { status = 500, message } = err
-    res.json({ message }, status)
-  })
+  return (req, res) =>
+    connect(sendJson, jwtAuthExpress(options), (req, res) =>
+      res.json(req[requestProperty])
+    )(req, res, (err) => {
+      const { status = 500, message } = err
+      res.json({ message }, status)
+    })
 }
 
 describe('jwtAuthExpress', function () {
