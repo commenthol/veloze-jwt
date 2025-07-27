@@ -28,30 +28,36 @@ import { Server } from 'veloze'
 import { jwtAuth } from '@veloze/jwt'
 
 const server = new Server()
-const issuer = 'https://my.oau.th'
+const issuer = 'https://sym.oau.th'
 // for HS256, HS384, HS512 token provide secret
 const protect = jwtAuth({ issuer, secret: 's€cr3t' })
 server.get('/', protect, (req, res) => res.end())
 server.listen(443)
 
 // ----
-await fetch('https://server', { 
+await fetch('https://server', {
   headers: {
     authorization: 'Bearer <TOKEN>' // H256 Token with issuer https://my.oau.th
   }
 })
 ```
 
-For OIDC servers with .well-known/openid-configuration 
+For OIDC servers with `.well-known/openid-configuration`
 
 ```js
 import { jwtAuth, jwks } from '@veloze/jwt'
 
+// with asymmetric keys 
 const issuer = 'https://my.oau.th'
 const issuer2 = 'https://oauth.other'
 
+// (optionally) add issuer with symmetric keys
+const secretsByIssuer = {
+  'https://sym.oau.th': 's€cr3t'
+}
+
 // supports multiple issuers
-const secret = jwks([issuer, issuer2])
+const secret = await jwks([issuer, issuer2], { secretsByIssuer })
 const protect = jwtAuth({ secret })
 ```
 
@@ -60,11 +66,11 @@ const protect = jwtAuth({ secret })
 ## jwtAuth
 
 ```ts
-import { 
+import {
   JWTHeaderParameters,
   JWTPayload,
-  JWTVerifyOptions, 
-  KeyLike 
+  JWTVerifyOptions,
+  KeyLike
 } from 'jose'
 
 interface DecodedJWT {
@@ -82,17 +88,17 @@ interface JwtOptions extends JWTVerifyOptions {
    */
   secret: string|Buffer|KeyLike|GetKeyLikeFn
   /**
-   * if verification is successful then payload of decoded token is added to 
+   * if verification is successful then payload of decoded token is added to
    * request using this property e.g. default is `req.auth`
    * @default 'auth'
    */
   requestProperty: string
 }
 
-function jwtAuth (options: JwtOptions): 
+function jwtAuth (options: JwtOptions):
   Promise<(req: Request, res: Response): void>
 
-function jwtAuthExpress (options: JwtOptions): 
+function jwtAuthExpress (options: JwtOptions):
   (req: Request, res: Response, next: Function): void
 ```
 
@@ -103,27 +109,27 @@ type JwksOptions = {
   /**
    * allows to set custom fetch function
    */
-  fetcher?: typeof fetch | undefined;
+  fetcher?: typeof fetch | undefined
   /**
    * expiry in ms, JWKS uris are cached until this expiry timeout
    */
-  expiresIn?: number | undefined;
+  expiresIn?: number | undefined
   /**
    * jwksUri by issuer (for PS, RS, ES alg JWTs)
-   * allows to overwrite the default jwks_uri which usually is looked-up from 
+   * allows to overwrite the default jwks_uri which usually is looked-up from
    * .well-known/openid-configuration
    */
-  jwksByIssuer?: Record<string, string> | undefined;
+  jwksByIssuer?: Record<string, string> | undefined
   /**
-   * secret by issuer (for HS JWTs) 
+   * secret by issuer (for HS JWTs)
    */
-  secretsByIssuer?: Record<string, string | Uint8Array> | undefined;
-};
+  secretsByIssuer?: Record<string, string | Uint8Array> | undefined
+}
 
 /**
  * issuers: provide a list of different issuers which shall be supported
  */
-function jwks(issuers: string[], options: JwksOptions): GetKeyLikeFn;
+function jwks(issuers: string[], options: JwksOptions): Promise<GetKeyLikeFn>
 ```
 
 # license
@@ -132,8 +138,7 @@ MIT licensed
 
 [npm-badge]: https://badgen.net/npm/v/@veloze/jwt
 [npm]: https://www.npmjs.com/package/@veloze/jwt
-[types-badge]:https://badgen.net/npm/types/@veloze/jwt
+[types-badge]: https://badgen.net/npm/types/@veloze/jwt
 [actions-badge]: https://github.com/commenthol/veloze-jwt/workflows/CI/badge.svg?branch=main&event=push
 [actions]: https://github.com/commenthol/veloze-jwt/actions/workflows/ci.yml?query=branch%3Amain
-
 [express]: https://expressjs.com

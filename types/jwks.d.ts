@@ -6,14 +6,14 @@
  * @property {fetch} [fetcher=fetch]
  * @property {Number} [expiresIn=3e5] expiry in ms
  * @property {Record<string, string>} [jwksByIssuer] jwksUri by issuer
- * @property {Record<string, string|Uint8Array>} [secretsByIssuer] secret by issuer
+ * @property {Record<string, string|Uint8Array>} [secretsByIssuer] secret or publicKey by issuer
  */
 /**
  * @param {string[]} issuers issuer uris
  * @param {JwksOptions} options
- * @returns {GetKeyLikeFn}
+ * @returns {Promise<GetKeyLikeFn>}
  */
-export function jwks(issuers: string[], options: JwksOptions): GetKeyLikeFn;
+export function jwks(issuers: string[], options: JwksOptions): Promise<GetKeyLikeFn>;
 export type GetKeyLikeFn = import("./jwtAuth.js").GetKeyLikeFn;
 export type JwksOptions = {
     fetcher?: typeof fetch | undefined;
@@ -26,7 +26,7 @@ export type JwksOptions = {
      */
     jwksByIssuer?: Record<string, string> | undefined;
     /**
-     * secret by issuer
+     * secret or publicKey by issuer
      */
-    secretsByIssuer?: Record<string, string | Uint8Array> | undefined;
+    secretsByIssuer?: Record<string, string | Uint8Array<ArrayBufferLike>> | undefined;
 };

@@ -18,8 +18,8 @@ const createApp = (options) => {
 describe('jwtAuthExpress', function () {
   let app
   const secret = 's€cr3t'
-  before(function () {
-    app = createApp({ secret, algorithms: ['HS256'] })
+  before(async function () {
+    app = await createApp({ secret, algorithms: ['HS256'] })
   })
 
   it('shall decode H256 JWT', async function () {

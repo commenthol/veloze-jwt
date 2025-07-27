@@ -8,15 +8,15 @@ import * as jose from 'jose'
  * @property {fetch} [fetcher=fetch]
  * @property {Number} [expiresIn=3e5] expiry in ms
  * @property {Record<string, string>} [jwksByIssuer] jwksUri by issuer
- * @property {Record<string, string|Uint8Array>} [secretsByIssuer] secret by issuer
+ * @property {Record<string, string|Uint8Array>} [secretsByIssuer] secret or publicKey by issuer
  */
 
 /**
  * @param {string[]} issuers issuer uris
  * @param {JwksOptions} options
- * @returns {GetKeyLikeFn}
+ * @returns {Promise<GetKeyLikeFn>}
  */
-export function jwks(issuers, options) {
+export async function jwks(issuers, options) {
   const {
     expiresIn = 3e5, // default is 5 min
     fetcher = fetchIt(options),
@@ -45,7 +45,7 @@ export function jwks(issuers, options) {
     secretsCache.set(iss, _secret)
   }
 
-  return async function getKey({ header, payload }) {
+  async function getKey({ header, payload }) {
     const { kid, alg } = header
     const { iss } = payload || {}
 
@@ -53,6 +53,7 @@ export function jwks(issuers, options) {
       throw new Error(`unknown issuer: ${iss}`)
     }
 
+    // serve secret or public key passed with secretsByIssuer
     const secret = secretsCache.get(iss)
     if (secret) {
       return secret
@@ -71,28 +72,34 @@ export function jwks(issuers, options) {
       return _kid
     }
 
-    let jwskUri = jwksCache.get(iss)
-    if (!jwskUri) {
+    let jwksUri = jwksCache.get(iss)
+    if (!jwksUri) {
       /* c8 ignore next 3 */
       if (!issuers.includes(iss)) {
         throw new Error(`unknown issuer: ${iss}`)
       }
-      const obj = await fetcher(`${iss}/.well-known/openid-configuration`)
-      jwskUri = obj.jwks_uri
-      if (!jwskUri) {
+      const oidcConf = await fetcher(`${iss}/.well-known/openid-configuration`)
+      if (oidcConf?.issuer !== iss) {
+        throw new Error(`ambiguous issuer ${iss} !== ${oidcConf?.issuer}`)
+      }
+      jwksUri = oidcConf?.jwks_uri
+      /* c8 ignore next 3 */
+      if (!jwksUri) {
         throw new Error(`unknown jwksUri: ${iss}`)
       }
-      jwksCache.set(iss, jwskUri)
+      jwksCache.set(iss, jwksUri)
     }
 
-    const obj = await fetcher(jwskUri)
-    if (!Array.isArray(obj?.keys)) {
-      throw new Error(`No keys found: ${iss}`)
+    const jwksKeys = await fetcher(jwksUri)
+    if (!Array.isArray(jwksKeys?.keys)) {
+      throw new Error(`no keys found: issue=${iss} url=${jwksUri}`)
     }
-    for (const key of obj.keys) {
+    for (const key of jwksKeys.keys) {
       const { kid, alg, ...keyLikeAttr } = key
       const _kidAlg = kid + alg
-      const keyLike = await jose.importJWK(keyLikeAttr).catch((_err) => null)
+      const keyLike = await jose
+        .importJWK(keyLikeAttr, alg)
+        .catch((err) => console.warn(err))
       if (keyLike) {
         kidCache.set(_kidAlg, keyLike)
         expiryCache.set(_kidAlg, Date.now() + expiresIn)
@@ -102,17 +109,24 @@ export function jwks(issuers, options) {
     _kid = kidCache.get(kidAlg)
     return _kid
   }
+
+  // get keys from all issuers (max. timeout is 2x 15s)
+  await Promise.all(
+    issuers.map((iss) => getKey({ header: {}, payload: { iss } }))
+  )
+
+  return getKey
 }
 
 const fetchIt = (options) => {
   const { timeout = 15e3 } = options || {}
 
   return async (jwskUri) => {
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), timeout)
-
-    const res = await fetch(jwskUri, { signal: controller.signal })
-    clearTimeout(timer)
+    const res = await fetch(jwskUri, {
+      signal: AbortSignal.timeout(timeout)
+    }).catch((cause) => {
+      throw new Error(`fetch failed url=${jwskUri}`, { cause })
+    })
 
     if (
       res.ok &&

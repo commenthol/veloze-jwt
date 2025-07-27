@@ -42,8 +42,19 @@ export const createServer = async (options) => {
   server.post(
     `${pathname}/token`,
     bodyParser.urlEncoded(),
-    token({ issuer, privateKeys })
+    async (req, res) => {
+      // HACK username contains alg
+      const { username } = req.body
+      const payload = { iss: issuer, username }
+      const accessToken = await token({ privateKeys, alg: username, payload })
+      return res.json({
+        access_token: accessToken,
+        expires: 300
+      })
+    }
   )
+
+  server.getAccessToken = (alg, payload) => token({ privateKeys, alg, payload })
 
   return server
 }
@@ -72,7 +83,7 @@ const generateKeys = async () => {
 
 const wellKnown =
   ({ issuer }) =>
-  (req, res) => {
+  (_req, res) => {
     res.json({
       issuer,
       token_endpoint: issuer + '/token',
@@ -85,32 +96,21 @@ const wellKnown =
 
 const certs =
   ({ publicKeys }) =>
-  (req, res) => {
+  (_req, res) => {
     res.json({ keys: publicKeys })
   }
 
-const token =
-  ({ issuer, privateKeys }) =>
-  async (req, res) => {
-    const { username } = req.body
-    const body = {
-      iss: issuer,
-      username
-    }
+const token = async ({ privateKeys, alg: _alg, payload }) => {
+  const { kid, alg, privateKey } = privateKeys[_alg] || privateKeys.RS256
 
-    const { kid, alg, privateKey } = privateKeys[username] || privateKeys.RS256
+  const accessToken = await new jose.SignJWT(payload)
+    .setProtectedHeader({ kid, alg })
+    .setIssuedAt()
+    .setExpirationTime('5m')
+    .sign(privateKey)
 
-    const accessToken = await new jose.SignJWT(body)
-      .setProtectedHeader({ kid, alg })
-      .setIssuedAt()
-      .setExpirationTime('5m')
-      .sign(privateKey)
-
-    return res.json({
-      access_token: accessToken,
-      expires: 300
-    })
-  }
+  return accessToken
+}
 
 // await createServer({ issuer: 'http://localhost:8080/realms/my' })
 // console.log(await generateKeys())

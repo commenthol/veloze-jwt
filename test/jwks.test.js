@@ -16,8 +16,8 @@ import { Log } from 'debug-level'
 
 const log = new Log('test')
 
-const createApp = (issuers, options) => {
-  const secret = jwks(issuers, options)
+const createApp = async (issuers, options) => {
+  const secret = await jwks(issuers, options)
   const app = new Server({ onlyHTTP1: true, gracefulTimeout: 0 })
   app.use(jwtAuth({ secret }), sendJson)
   app.get('/', (req, res) => res.json(req.auth))
@@ -26,22 +26,40 @@ const createApp = (issuers, options) => {
 
 describe('jwks', function () {
   describe('setup', function () {
-    it('throws on missing issuers', function () {
-      assert.throws(() => {
-        jwks()
-      }, /^Error: need issuers array$/)
+    const port = 10010
+    const issuer = `http://localhost:${port}/fake`
+    let server
+    before(async function () {
+      server = (
+        await createServer({ issuer: 'http://foo', port, pathname: '/fake' })
+      ).listen(port)
+    })
+    after(function () {
+      server.close()
     })
 
-    it('throws if issuers are not an array', function () {
-      assert.throws(() => {
-        jwks('foobar')
-      }, /^Error: need issuers array$/)
+    it('throws on missing issuers', async function () {
+      await assert.rejects(async () => {
+        await jwks()
+      }, new Error('need issuers array'))
     })
 
-    it('throws if jwksByIssuer does not use correct url', function () {
-      assert.throws(() => {
-        jwks(['foobar'], { jwksByIssuer: { foobar: 'not an URL' } })
-      }, /^Error: Invalid URL: not an URL$/)
+    it('throws if issuers are not an array', async function () {
+      await assert.rejects(async () => {
+        await jwks('foobar')
+      }, new Error('need issuers array'))
+    })
+
+    it('throws if jwksByIssuer does not use correct url', async function () {
+      await assert.rejects(async () => {
+        await jwks(['foobar'], { jwksByIssuer: { foobar: 'not an URL' } })
+      }, new Error('Invalid URL: not an URL'))
+    })
+
+    it('throws on issuer mismatch', async function () {
+      await assert.rejects(async () => {
+        await jwks([issuer])
+      }, new Error('ambiguous issuer http://localhost:10010/fake !== http://foo'))
     })
   })
 
@@ -49,10 +67,10 @@ describe('jwks', function () {
     const port = 10001
     const issuer = `http://localhost:${port}/fake`
     let server
+    let forServer
     before(async function () {
-      server = (await createServer({ issuer, port, pathname: '/fake' })).listen(
-        port
-      )
+      forServer = await createServer({ issuer, port, pathname: '/fake' })
+      server = forServer.listen(port)
     })
     after(function () {
       server.close()
@@ -60,8 +78,8 @@ describe('jwks', function () {
 
     const clientUrl = 'http://localhost:10002'
     let client
-    before(function () {
-      const app = createApp([issuer])
+    before(async function () {
+      const app = await createApp([issuer])
       client = app.listen(new URL(clientUrl).port)
     })
     after(function () {
@@ -141,7 +159,7 @@ describe('jwks', function () {
       it('shall authorize', async function () {
         // declare secrets by issuer to define share shared secret
         const secretsByIssuer = { [issuer]: 'secret' }
-        const app = createApp([issuer], { secretsByIssuer })
+        const app = await createApp([issuer], { secretsByIssuer })
 
         const { body } = await supertest(app).get('/').set({ authorization })
         log.debug(body)
@@ -157,19 +175,14 @@ describe('jwks', function () {
       }
 
       let app
-      before(function () {
-        app = createApp([issuer])
+      before(async function () {
+        app = await createApp([issuer])
       })
 
-      it('shall fail with wrong issuer', async function () {
-        const app = createApp(['http://localhost:6666/no-issuer'])
-
-        const { body } = await supertest(app)
-          .get('/')
-          .set({ authorization, accept: 'application/json' })
-          .expect(401)
-        // log.debug(body)
-        assert.equal(body.message, 'Invalid Token')
+      it('shall fail with unreachable issuer', async function () {
+        await assert.rejects(async () => {
+          await createApp(['http://localhost:6666/no-issuer'])
+        }, new Error('fetch failed url=http://localhost:6666/no-issuer/.well-known/openid-configuration'))
       })
 
       it('shall fail with bad header token', async function () {
@@ -177,8 +190,11 @@ describe('jwks', function () {
           alg: 'HS256',
           kid: '00000000-0000-0000-0000-000000000000'
         }
-        const payload = { iss: issuer, username: 'H256' }
-        const authorization = `Bearer ${encodeJwtBadHeader({ header, payload })}`
+        const payload = { iss: issuer, username: 'RS256' }
+        const authorization = `Bearer ${encodeJwtBadHeader({
+          header,
+          payload
+        })}`
         const { body } = await supertest(app)
           .get('/')
           .set({ authorization, accept: 'application/json' })
@@ -187,9 +203,26 @@ describe('jwks', function () {
         assert.equal(body.message, 'Invalid Token')
       })
 
+      it('shall fail with bad issuer', async function () {
+        const accessToken = await forServer.getAccessToken('HS256', {
+          iss: issuer + '/bad',
+          username: 'RS256'
+        })
+        const authorization = `Bearer ${accessToken}`
+        const { body } = await supertest(app)
+          .get('/')
+          .set({ authorization, accept: 'application/json' })
+          .expect(401)
+        log.debug(body)
+        assert.equal(body.message, 'Invalid Token')
+      })
+
       it('shall fail with bad payload token', async function () {
         const payload = { iss: issuer, username: 'H256' }
-        const authorization = `Bearer ${encodeJwtBadPayload({ header, payload })}`
+        const authorization = `Bearer ${encodeJwtBadPayload({
+          header,
+          payload
+        })}`
         const { body } = await supertest(app)
           .get('/')
           .set({ authorization, accept: 'application/json' })
@@ -211,39 +244,23 @@ describe('jwks', function () {
 
       it('shall fail if jwks uri returns 500', async function () {
         const jwksByIssuer = { [issuer]: `${issuer}/500/certs` }
-        const app = createApp([issuer], { jwksByIssuer })
-        const { body } = await supertest(app)
-          .get('/')
-          .set({ authorization, accept: 'application/json' })
-          .expect(401)
-        // log.debug(body)
-        assert.equal(body.message, 'Invalid Token')
+        await assert.rejects(async () => {
+          await createApp([issuer], { jwksByIssuer })
+        }, new Error('no keys found: issue=http://localhost:10001/fake url=http://localhost:10001/fake/500/certs'))
       })
 
       it('shall fail if well known returns 500', async function () {
         const iss = `${issuer}/500`
-        const payload = { iss, username: 'bob' }
-        const authorization = `Bearer ${encodeJwtBadSig({ header, payload })}`
-        const app = createApp([iss])
-        const { body } = await supertest(app)
-          .get('/')
-          .set({ authorization, accept: 'application/json' })
-          .expect(401)
-        // log.debug(body)
-        assert.equal(body.message, 'Invalid Token')
+        await assert.rejects(async () => {
+          await createApp([iss])
+        }, new Error('ambiguous issuer http://localhost:10001/fake/500 !== undefined'))
       })
 
       it('shall fail if well known returns 200', async function () {
         const iss = `${issuer}/200`
-        const payload = { iss, username: 'bob' }
-        const authorization = `Bearer ${encodeJwtBadSig({ header, payload })}`
-        const app = createApp([iss])
-        const { body } = await supertest(app)
-          .get('/')
-          .set({ authorization, accept: 'application/json' })
-          .expect(401)
-        // log.debug(body)
-        assert.equal(body.message, 'Invalid Token')
+        await assert.rejects(async () => {
+          await createApp([iss])
+        }, new Error('ambiguous issuer http://localhost:10001/fake/200 !== undefined'))
       })
     })
   })
