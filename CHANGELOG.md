@@ -1,3 +1,9 @@
+# 2.1.0 (2025-09-15)
+
+### feat:
+
+- add jwtAuthPass middleware that does not throw on validation errors (#bb68458)
+
 # 2.0.0 (2025-07-27)
 
 ### BREAKING CHANGE:
