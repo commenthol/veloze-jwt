@@ -6,6 +6,6 @@ export { jwks } from './jwks.js'
 
 /** @typedef {import('./jwtAuth.js').JwtOptions} JwtOptions */
 /** @typedef {import('./jwtAuth.js').GetKeyLikeFn} GetKeyLikeFn */
-export { jwtAuth } from './jwtAuth.js'
+export { jwtAuth, jwtAuthPass } from './jwtAuth.js'
 
 export { jwtAuthExpress } from './jwtAuthExpress.js'
