@@ -1,15 +1,16 @@
 import * as jose from 'jose'
 
 /**
- * @typedef {import('./jwtAuth.js').GetKeyLikeFn} GetKeyLikeFn
- */
-/**
  * @typedef {object} JwksOptions
  * @property {fetch} [fetcher=fetch]
  * @property {Number} [expiresIn=3e5] expiry in ms
  * @property {Record<string, string>} [jwksByIssuer] jwksUri by issuer
  * @property {Record<string, string|Uint8Array>} [secretsByIssuer] secret or publicKey by issuer
  */
+
+/** @typedef {import('./decodeJwt.js').DecodedJWT} DecodedJWT */
+/** @typedef {Uint8Array|jose.CryptoKey} KeyLike */
+/** @typedef {(decodedToken: DecodedJWT) => Promise<KeyLike|undefined>} GetKeyLikeFn */
 
 /**
  * @param {string[]} issuers issuer uris
@@ -28,23 +29,31 @@ export async function jwks(issuers, options) {
     throw new Error('need issuers array')
   }
 
+  /** @type {Map<string,KeyLike>} */
   const kidCache = new Map()
+  /** @type {Map<string,string>} */
   const jwksCache = new Map()
+  /** @type {Map<string,Uint8Array>} */
   const secretsCache = new Map()
+  /** @type {Map<string,number>} */
   const expiryCache = new Map()
 
-  for (const [iss, jwskUri] of Object.entries(jwksByIssuer)) {
-    if (!isHttpUrl(jwskUri)) {
-      throw new Error(`Invalid URL: ${jwskUri}`)
+  for (const [iss, jwksUri] of Object.entries(jwksByIssuer)) {
+    if (!isHttpUrl(jwksUri)) {
+      throw new Error(`Invalid URL: ${jwksUri}`)
     }
-    jwksCache.set(iss, jwskUri)
+    jwksCache.set(iss, jwksUri)
   }
   for (const [iss, secret] of Object.entries(secretsByIssuer)) {
-    const _secret =
+    const secretArrBuffer =
       typeof secret === 'string' ? new TextEncoder().encode(secret) : secret
-    secretsCache.set(iss, _secret)
+    secretsCache.set(iss, secretArrBuffer)
   }
 
+  /**
+   * @param {import('#decodeJwt.js').DecodedJWT} param0
+   * @returns {Promise<KeyLike|undefined>}
+   */
   async function getKey({ header, payload }) {
     const { kid, alg } = header
     const { iss } = payload || {}
@@ -59,7 +68,7 @@ export async function jwks(issuers, options) {
       return secret
     }
 
-    const kidAlg = kid + alg
+    const kidAlg = `${kid}${alg}`
     const expires = expiryCache.get(kidAlg)
     /* c8 ignore next 4 */
     if (expires && Date.now() > expires) {
@@ -67,9 +76,9 @@ export async function jwks(issuers, options) {
       expiryCache.delete(kidAlg)
     }
 
-    let _kid = kidCache.get(kidAlg)
-    if (_kid) {
-      return _kid
+    let keyLike = kidCache.get(kidAlg)
+    if (keyLike) {
+      return keyLike
     }
 
     let jwksUri = jwksCache.get(iss)
@@ -96,23 +105,26 @@ export async function jwks(issuers, options) {
     }
     for (const key of jwksKeys.keys) {
       const { kid, alg, ...keyLikeAttr } = key
-      const _kidAlg = kid + alg
-      const keyLike = await jose
+      const kidAlg_ = kid + alg
+      const keyLike_ = await jose
         .importJWK(keyLikeAttr, alg)
         .catch((err) => console.warn(err))
-      if (keyLike) {
-        kidCache.set(_kidAlg, keyLike)
-        expiryCache.set(_kidAlg, Date.now() + expiresIn)
+      if (keyLike_) {
+        kidCache.set(kidAlg_, keyLike_)
+        expiryCache.set(kidAlg_, Date.now() + expiresIn)
       }
     }
 
-    _kid = kidCache.get(kidAlg)
-    return _kid
+    keyLike = kidCache.get(kidAlg)
+    return keyLike
   }
 
   // get keys from all issuers (max. timeout is 2x 15s)
   await Promise.all(
-    issuers.map((iss) => getKey({ header: {}, payload: { iss } }))
+    issuers.map((iss) =>
+      //@ts-expect-error
+      getKey({ header: {}, payload: { iss } })
+    )
   )
 
   return getKey

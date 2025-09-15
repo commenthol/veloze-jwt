@@ -45,7 +45,7 @@ await fetch('https://server', {
 For OIDC servers with `.well-known/openid-configuration`
 
 ```js
-import { jwtAuth, jwks } from '@veloze/jwt'
+import { jwtAuth, jwtAuthPass, jwks } from '@veloze/jwt'
 
 // with asymmetric keys 
 const issuer = 'https://my.oau.th'
@@ -58,7 +58,14 @@ const secretsByIssuer = {
 
 // supports multiple issuers
 const secret = await jwks([issuer, issuer2], { secretsByIssuer })
+// protect middleware throws on invalid token
 const protect = jwtAuth({ secret })
+
+// pass middleware does NOT throw on invalid token, but adds payload to 
+// `req[requestProperty]` which defaults to `req.auth`
+// Validation MUST happen in the aftermath!!! E.g. 
+// `if (!req.auth) { throw new HttpError(401) }`
+const pass = jwtAuthPass({ secret })
 ```
 
 # API
@@ -66,22 +73,24 @@ const protect = jwtAuth({ secret })
 ## jwtAuth
 
 ```ts
-import {
-  JWTHeaderParameters,
-  JWTPayload,
-  JWTVerifyOptions,
-  KeyLike
-} from 'jose'
+type KeyLike = Uint8Array | jose.CryptoKey;
 
-interface DecodedJWT {
-  header: JWTHeaderParameters,
-  payload: JWTPayload,
-  signature: string
-}
+interface DecodedJWT = {
+    header: {
+        kid: string;
+        alg: string;
+    };
+    payload: {
+        iat: number;
+        exp: number;
+        [prop: string]: any;
+    };
+    signature: string;
+};
 
-type GetKeyLikeFn = (decodedToken: DecodedJWT, req: Request) => Promise<KeyLike>;
+type GetKeyLikeFn = (decodedToken: DecodedJWT) => Promise<KeyLike>;
 
-interface JwtOptions extends JWTVerifyOptions {
+interface JwtOptions extends jose.JWTVerifyOptions {
   /**
    * for HS256...HS512 provide secret as Buffer or string
    * for asymmetric JWT provide publicKey as secret
@@ -95,7 +104,17 @@ interface JwtOptions extends JWTVerifyOptions {
   requestProperty: string
 }
 
+/** 
+ * throws validation errors as HttpError(401) 
+ */
 function jwtAuth (options: JwtOptions):
+  Promise<(req: Request, res: Response): void>
+
+/** 
+ * does not throw on errors, just passes. If valid token was found, sets
+ * req[requestProperty] 
+ */
+function jwtAuthPass (options: JwtOptions):
   Promise<(req: Request, res: Response): void>
 
 function jwtAuthExpress (options: JwtOptions):
